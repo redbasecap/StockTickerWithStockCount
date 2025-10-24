@@ -10,12 +10,14 @@ A minimalist always-on-top desktop ticker built with Python. Add the stocks you 
 - Adjustable auto-refresh cadence (down to 5 seconds) plus manual refresh and inline status feedback.
 - Persisted holdings stored locally in SQLite so tracked shares survive restarts.
 - Embedded price-history chart with smooth styling to visualize the latest trend.
+- Instant light/dark themes with refreshed, modern UI styling.
 
 ## Requirements
 
 - Python 3.9 or newer.
 - `requests`
 - `matplotlib`
+- `ttkbootstrap`
 
 ## Run It
 

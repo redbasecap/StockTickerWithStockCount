@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from ttkbootstrap import Style
 
 
 POPULAR_SYMBOLS = [
@@ -42,6 +43,43 @@ REFRESH_INTERVAL_OPTIONS = {
 }
 DEFAULT_REFRESH_LABEL = "1m"
 MAX_HISTORY_POINTS = 240
+DEFAULT_THEME = "Light"
+THEME_PRESETS = {
+    "Light": {
+        "bootstrap_theme": "flatly",
+        "bg": "#f3f4f6",
+        "figure_bg": "#f3f4f6",
+        "chart_bg": "#ffffff",
+        "line": "#2563eb",
+        "fill": "#3b82f6",
+        "accent": "#dc2626",
+        "grid": "#d1d5db",
+        "text": "#0f172a",
+        "status_fg": "#1f2937",
+        "tree_bg": "#ffffff",
+        "tree_field_bg": "#ffffff",
+        "tree_selected_bg": "#2563eb",
+        "tree_selected_fg": "#ffffff",
+        "tree_border": "#e5e7eb",
+    },
+    "Dark": {
+        "bootstrap_theme": "darkly",
+        "bg": "#0f172a",
+        "figure_bg": "#0f172a",
+        "chart_bg": "#111827",
+        "line": "#60a5fa",
+        "fill": "#2563eb",
+        "accent": "#f87171",
+        "grid": "#1f2937",
+        "text": "#e5e7eb",
+        "status_fg": "#e5e7eb",
+        "tree_bg": "#111827",
+        "tree_field_bg": "#111827",
+        "tree_selected_bg": "#2563eb",
+        "tree_selected_fg": "#f8fafc",
+        "tree_border": "#1f2937",
+    },
+}
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 REQUEST_TIMEOUT = 10
 DB_PATH = Path(__file__).with_name("holdings.db")
@@ -63,12 +101,16 @@ class Holding:
 
 
 class TickerApp:
-    def __init__(self, root: tk.Tk) -> None:
+    def __init__(self, root: tk.Tk, style: Style) -> None:
         self.root = root
         self.root.title("Ticker With Price")
-        self.root.geometry("480x560")
+        self.root.geometry("520x600")
         self.root.attributes("-topmost", True)
-        self.root.configure(padx=12, pady=12)
+        self.root.configure(padx=16, pady=16)
+
+        self.style = style
+        self.theme_name = DEFAULT_THEME
+        self.colors = THEME_PRESETS[self.theme_name]
 
         self.holdings: Dict[str, Holding] = {}
         self.price_history: Dict[str, List[Tuple[datetime, float]]] = {}
@@ -80,6 +122,7 @@ class TickerApp:
         self.current_chart_symbol: Optional[str] = None
 
         self._build_widgets()
+        self._apply_theme(self.theme_name)
         self._init_db()
         self._load_holdings()
         self._schedule_refresh()
@@ -87,7 +130,7 @@ class TickerApp:
 
     def _build_widgets(self) -> None:
         controls = ttk.Frame(self.root)
-        controls.pack(fill="x", pady=(0, 8))
+        controls.pack(fill="x", pady=(0, 12))
 
         symbol_label = ttk.Label(controls, text="Symbol")
         symbol_label.grid(row=0, column=0, sticky="w")
@@ -126,10 +169,25 @@ class TickerApp:
         interval_combo.grid(row=1, column=3, padx=(8, 0), sticky="ew")
         interval_combo.bind("<<ComboboxSelected>>", self._on_interval_change)
 
+        theme_label = ttk.Label(controls, text="Theme")
+        theme_label.grid(row=0, column=4, sticky="w")
+
+        self.theme_var = tk.StringVar(value=self.theme_name)
+        theme_combo = ttk.Combobox(
+            controls,
+            textvariable=self.theme_var,
+            values=list(THEME_PRESETS.keys()),
+            width=8,
+            state="readonly",
+        )
+        theme_combo.grid(row=1, column=4, padx=(8, 0), sticky="ew")
+        theme_combo.bind("<<ComboboxSelected>>", self._on_theme_change)
+
         controls.columnconfigure(0, weight=2)
         controls.columnconfigure(1, weight=1)
         controls.columnconfigure(2, weight=1)
         controls.columnconfigure(3, weight=1)
+        controls.columnconfigure(4, weight=1)
 
         self.tree = ttk.Treeview(
             self.root,
@@ -150,19 +208,20 @@ class TickerApp:
         self.tree.pack(fill="both", expand=True)
         self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
 
-        chart_frame = ttk.LabelFrame(self.root, text="Price History")
-        chart_frame.pack(fill="both", expand=True, pady=(8, 0))
+        self.chart_frame = ttk.LabelFrame(self.root, text="Price History", style="Card.TLabelframe")
+        self.chart_frame.pack(fill="both", expand=True, pady=(12, 0))
 
-        self.figure = Figure(figsize=(4.4, 2.6), dpi=100)
+        self.figure = Figure(figsize=(4.6, 2.8), dpi=100)
         self.ax = self.figure.add_subplot(111)
         self._prepare_axes("No data yet")
 
-        self.canvas = FigureCanvasTkAgg(self.figure, master=chart_frame)
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.chart_frame)
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.pack(fill="both", expand=True)
         self.canvas.draw_idle()
-        self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
         actions = ttk.Frame(self.root)
-        actions.pack(fill="x", pady=(8, 0))
+        actions.pack(fill="x", pady=(12, 0))
 
         remove_button = ttk.Button(actions, text="Remove Selected", command=self.remove_selected)
         remove_button.pack(side="left")
@@ -171,8 +230,8 @@ class TickerApp:
         refresh_button.pack(side="right")
 
         self.status_var = tk.StringVar(value="Ready")
-        status_label = ttk.Label(self.root, textvariable=self.status_var, anchor="w")
-        status_label.pack(fill="x", pady=(4, 0))
+        self.status_label = ttk.Label(self.root, textvariable=self.status_var, anchor="w", style="Status.TLabel")
+        self.status_label.pack(fill="x", pady=(8, 0))
 
     def add_holding(self) -> None:
         symbol = self.symbol_var.get().strip().upper()
@@ -400,6 +459,80 @@ class TickerApp:
         with self.conn:
             self.conn.execute("DELETE FROM holdings WHERE symbol = ?", (symbol,))
 
+    def _apply_theme(self, theme_name: str) -> None:
+        preset = THEME_PRESETS.get(theme_name, THEME_PRESETS[DEFAULT_THEME])
+        self.theme_name = theme_name
+        self.colors = preset
+
+        self.style.theme_use(preset["bootstrap_theme"])
+
+        self.root.configure(bg=preset["bg"])
+        self.canvas_widget.configure(
+            background=preset["figure_bg"],
+            highlightthickness=0,
+            borderwidth=0,
+        )
+
+        self.style.configure(
+            "Status.TLabel",
+            background=preset["bg"],
+            foreground=preset["status_fg"],
+            padding=(6, 4),
+        )
+        self.style.configure(
+            "Card.TLabelframe",
+            background=preset["bg"],
+            foreground=preset["text"],
+            borderwidth=0,
+            relief="flat",
+        )
+        self.style.configure(
+            "Card.TLabelframe.Label",
+            background=preset["bg"],
+            foreground=preset["text"],
+            font=("Helvetica", 10, "bold"),
+        )
+        self.style.configure(
+            "Treeview",
+            background=preset["tree_bg"],
+            fieldbackground=preset["tree_field_bg"],
+            foreground=preset["text"],
+            rowheight=26,
+            borderwidth=0,
+        )
+        self.style.map(
+            "Treeview",
+            background=[("selected", preset["tree_selected_bg"])],
+            foreground=[("selected", preset["tree_selected_fg"])],
+        )
+        self.style.configure(
+            "Treeview.Heading",
+            background=preset["tree_bg"],
+            foreground=preset["text"],
+            font=("Helvetica", 10, "bold"),
+            borderwidth=0,
+        )
+        self.style.configure("TButton", padding=6)
+        self.style.configure("TCombobox", padding=4)
+
+        self.chart_frame.configure(style="Card.TLabelframe")
+        self.status_label.configure(style="Status.TLabel")
+        if hasattr(self, "theme_var"):
+            self.theme_var.set(theme_name)
+
+        for frame in (self.root,):
+            frame.configure(bg=preset["bg"])
+
+        self.figure.patch.set_facecolor(preset["figure_bg"])
+        self.ax.set_facecolor(preset["chart_bg"])
+
+        current_symbol = self.current_chart_symbol
+        if current_symbol:
+            self._update_chart(current_symbol)
+        else:
+            self._prepare_axes("No data yet")
+            self.canvas.draw_idle()
+
     def _record_price(self, symbol: str, price: float) -> None:
         history = self.price_history.setdefault(symbol, [])
         history.append((datetime.now(), price))
@@ -415,6 +548,13 @@ class TickerApp:
         self.refresh_interval_ms = interval
         self._schedule_refresh()
         self.status_var.set(f"Refresh rate set to {label}.")
+
+    def _on_theme_change(self, event: tk.Event) -> None:  # type: ignore[override]
+        theme = self.theme_var.get()
+        if theme == self.theme_name:
+            return
+        self._apply_theme(theme)
+        self.status_var.set(f"{theme} theme applied.")
 
     def _on_tree_select(self, event: tk.Event) -> None:  # type: ignore[override]
         selection = self.tree.selection()
@@ -434,6 +574,7 @@ class TickerApp:
             self.current_chart_symbol = symbol
             return
 
+        palette = self.colors
         times, prices = zip(*history)
         self.ax.clear()
         self._prepare_axes(symbol)
@@ -441,12 +582,13 @@ class TickerApp:
         self.ax.plot(
             times,
             prices,
-            color="#1f6feb",
-            linewidth=1.8,
+            color=palette["line"],
+            linewidth=2.0,
             marker="o",
-            markersize=3,
-            markerfacecolor="#ffffff",
-            markeredgewidth=0.6,
+            markersize=3.5,
+            markerfacecolor=palette["chart_bg"],
+            markeredgecolor=palette["line"],
+            markeredgewidth=0.8,
         )
 
         price_min = min(prices)
@@ -459,8 +601,8 @@ class TickerApp:
                 times,
                 prices,
                 baseline,
-                color="#1f6feb",
-                alpha=0.14,
+                color=palette["fill"],
+                alpha=0.18,
                 linewidth=0,
             )
         self.ax.set_ylim(price_min - padding, price_max + padding)
@@ -473,14 +615,21 @@ class TickerApp:
 
         last_time = times[-1]
         last_price = prices[-1]
-        self.ax.scatter([last_time], [last_price], color="#d73a4a", s=20, zorder=5)
+        self.ax.scatter([last_time], [last_price], color=palette["accent"], s=26, zorder=5)
         self.ax.annotate(
             f"${last_price:,.2f}",
             xy=(last_time, last_price),
             xytext=(0, 10),
             textcoords="offset points",
             fontsize=8,
-            color="#d73a4a",
+            color=palette["accent"],
+            bbox=dict(
+                boxstyle="round,pad=0.3",
+                facecolor=palette["chart_bg"],
+                edgecolor=palette["accent"],
+                linewidth=0.8,
+                alpha=0.85,
+            ),
             ha="center",
         )
 
@@ -494,15 +643,18 @@ class TickerApp:
         self.current_chart_symbol = None
 
     def _prepare_axes(self, title: str) -> None:
-        self.ax.set_title(title, fontsize=11, pad=10)
-        self.ax.set_xlabel("Time", fontsize=9)
-        self.ax.set_ylabel("Price", fontsize=9)
-        self.ax.tick_params(axis="both", labelsize=8)
-        self.ax.grid(True, which="major", color="#d0d0d0", linestyle="--", linewidth=0.6)
-        self.ax.set_facecolor("#fdfdfd")
-        self.figure.patch.set_facecolor("#f7f7f7")
-        for spine in ("top", "right"):
-            self.ax.spines[spine].set_visible(False)
+        palette = self.colors
+        self.ax.set_title(title, fontsize=11, pad=10, color=palette["text"])
+        self.ax.set_xlabel("Time", fontsize=9, color=palette["text"])
+        self.ax.set_ylabel("Price", fontsize=9, color=palette["text"])
+        self.ax.tick_params(axis="both", labelsize=8, colors=palette["text"])
+        self.ax.grid(True, which="major", color=palette["grid"], linestyle="--", linewidth=0.6)
+        self.ax.set_facecolor(palette["chart_bg"])
+        self.figure.patch.set_facecolor(palette["figure_bg"])
+        for spine in self.ax.spines.values():
+            spine.set_color(palette["grid"])
+        self.ax.spines["top"].set_alpha(0.0)
+        self.ax.spines["right"].set_alpha(0.0)
 
     def _on_close(self) -> None:
         if self.refresh_job:
@@ -515,15 +667,11 @@ class TickerApp:
 
 
 def main() -> None:
-    root = tk.Tk()
-    style = ttk.Style(root)
-    if "clam" in style.theme_names():
-        style.theme_use("clam")
-    style.configure("Treeview.Heading", font=("Helvetica", 10, "bold"))
-    app = TickerApp(root)
+    style = Style(theme=THEME_PRESETS[DEFAULT_THEME]["bootstrap_theme"])
+    root = style.master
+    app = TickerApp(root, style)
     root.mainloop()
 
 
 if __name__ == "__main__":
     main()
-
