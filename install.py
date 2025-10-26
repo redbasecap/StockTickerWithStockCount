@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Install dependencies for the Ticker With Price app."""
 
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def main() -> None:
@@ -12,11 +12,41 @@ def main() -> None:
     if not requirements.exists():
         raise FileNotFoundError("requirements.txt is missing; cannot continue.")
 
-    print("Installing dependencies...")
-    subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "-r", str(requirements)]
+    venv_dir = repo_root / ".venv"
+    if not venv_dir.exists():
+        print("Creating virtual environment in .venv...")
+        subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+    else:
+        print("Virtual environment already exists; reusing .venv.")
+
+    env_python = (
+        venv_dir / "Scripts" / "python.exe"
+        if sys.platform.startswith("win")
+        else venv_dir / "bin" / "python"
     )
-    print("All dependencies installed. Launch the app with `python ticker.py`.")
+    if not env_python.exists():
+        raise FileNotFoundError(
+            f"Expected Python executable at {env_python}, but it was not found."
+        )
+
+    print("Installing dependencies into the virtual environment...")
+    subprocess.check_call(
+        [str(env_python), "-m", "pip", "install", "-r", str(requirements)]
+    )
+    env_path = repo_root / ".env"
+    if not env_path.exists():
+        env_path.write_text(
+            "# Environment configuration for Ticker With Price\n"
+            "# Add overrides as KEY=VALUE pairs. Example:\n"
+            "# REFRESH_INTERVAL_SECONDS=60\n"
+        )
+        print("Created .env template.")
+
+    print("All dependencies installed inside .venv.")
+    if sys.platform.startswith("win"):
+        print("Launch the app with `.venv\\Scripts\\python.exe ticker.py`.")
+    else:
+        print("Launch the app with `./.venv/bin/python ticker.py`.")
 
 
 if __name__ == "__main__":

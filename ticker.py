@@ -180,9 +180,9 @@ class TickerApp:
         self.summary_frame.columnconfigure(0, weight=1)
         self.summary_frame.columnconfigure(1, weight=1)
 
-        self.summary_value_var = tk.StringVar(value="$0.00")
-        self.summary_holdings_var = tk.StringVar(value="No holdings yet")
-        self.summary_last_updated_var = tk.StringVar(value="Waiting for first update")
+        self.summary_value_var = tk.StringVar(value="Add your first holding below")
+        self.summary_holdings_var = tk.StringVar(value="")
+        self.summary_last_updated_var = tk.StringVar(value="")
 
         self.summary_value_label = ttk.Label(
             self.summary_frame,
@@ -478,6 +478,7 @@ class TickerApp:
 
         for orphan in existing_items:
             self.tree.delete(orphan)
+        self._update_summary()
 
     def _ensure_tree_item(self, symbol: str) -> str:
         if self.tree.exists(symbol):
@@ -513,21 +514,26 @@ class TickerApp:
         total_value = sum(holding.value for holding in priced if holding.value is not None)
 
         if count == 0:
-            holdings_text = "No holdings yet"
+            self.summary_value_var.set("Add your first holding below")
+            self.summary_holdings_var.set("")
+            self.summary_last_updated_var.set("")
+            self.summary_holdings_label.grid_remove()
+            self.summary_last_updated_label.grid_remove()
         else:
+            if not self.summary_holdings_label.winfo_ismapped():
+                self.summary_holdings_label.grid(row=0, column=1, sticky="e")
+            if not self.summary_last_updated_label.winfo_ismapped():
+                self.summary_last_updated_label.grid(row=1, column=1, sticky="e", pady=(4, 0))
             shares_text = f"{total_shares:g} share{'s' if total_shares != 1 else ''}"
             holdings_text = f"{count} holding{'s' if count != 1 else ''} • {shares_text}"
-        self.summary_holdings_var.set(holdings_text)
+            self.summary_holdings_var.set(holdings_text)
 
-        if priced:
-            self.summary_value_var.set(f"${total_value:,.2f}")
-            latest_timestamp = max(holding.last_updated or 0 for holding in priced)
-            self.summary_last_updated_var.set(self._humanize_elapsed(latest_timestamp))
-        else:
-            self.summary_value_var.set("—")
-            if count == 0:
-                self.summary_last_updated_var.set("Waiting for first update")
+            if priced:
+                self.summary_value_var.set(f"${total_value:,.2f}")
+                latest_timestamp = max(holding.last_updated or 0 for holding in priced)
+                self.summary_last_updated_var.set(self._humanize_elapsed(latest_timestamp))
             else:
+                self.summary_value_var.set("—")
                 self.summary_last_updated_var.set("Waiting on pricing data")
 
     def _schedule_refresh(self) -> None:
