@@ -58,9 +58,13 @@ THEME_PRESETS = {
         "status_fg": "#1f2937",
         "tree_bg": "#ffffff",
         "tree_field_bg": "#ffffff",
+        "tree_alt_bg": "#f8fafc",
         "tree_selected_bg": "#2563eb",
         "tree_selected_fg": "#ffffff",
         "tree_border": "#e5e7eb",
+        "muted_text": "#64748b",
+        "summary_bg": "#ffffff",
+        "summary_border": "#e2e8f0",
     },
     "Dark": {
         "bootstrap_theme": "darkly",
@@ -75,9 +79,34 @@ THEME_PRESETS = {
         "status_fg": "#e5e7eb",
         "tree_bg": "#111827",
         "tree_field_bg": "#111827",
+        "tree_alt_bg": "#1b2335",
         "tree_selected_bg": "#2563eb",
         "tree_selected_fg": "#f8fafc",
         "tree_border": "#1f2937",
+        "muted_text": "#94a3b8",
+        "summary_bg": "#111827",
+        "summary_border": "#1f2937",
+    },
+    "Nord": {
+        "bootstrap_theme": "minty",
+        "bg": "#e5e9f0",
+        "figure_bg": "#e5e9f0",
+        "chart_bg": "#f1f5fb",
+        "line": "#5e81ac",
+        "fill": "#81a1c1",
+        "accent": "#bf616a",
+        "grid": "#cbd5e1",
+        "text": "#2e3440",
+        "status_fg": "#2e3440",
+        "tree_bg": "#ffffff",
+        "tree_field_bg": "#ffffff",
+        "tree_alt_bg": "#eef2f8",
+        "tree_selected_bg": "#5e81ac",
+        "tree_selected_fg": "#f8fafc",
+        "tree_border": "#d8dee9",
+        "muted_text": "#4c566a",
+        "summary_bg": "#ffffff",
+        "summary_border": "#d8dee9",
     },
 }
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
@@ -129,15 +158,64 @@ class TickerApp:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_widgets(self) -> None:
-        controls = ttk.Frame(self.root)
-        controls.pack(fill="x", pady=(0, 12))
+        self.header_frame = ttk.Frame(self.root)
+        self.header_frame.pack(fill="x", pady=(0, 12))
 
-        symbol_label = ttk.Label(controls, text="Symbol")
+        self.headline_label = ttk.Label(
+            self.header_frame,
+            text="Ticker With Price",
+            style="Headline.TLabel",
+        )
+        self.headline_label.pack(anchor="w")
+
+        self.subheading_label = ttk.Label(
+            self.header_frame,
+            text="Track your watchlist with a clean, always-on-top dashboard.",
+            style="Subheading.TLabel",
+        )
+        self.subheading_label.pack(anchor="w", pady=(2, 0))
+
+        self.summary_frame = ttk.Frame(self.root, padding=12, style="Summary.TFrame")
+        self.summary_frame.pack(fill="x", pady=(0, 16))
+        self.summary_frame.columnconfigure(0, weight=1)
+        self.summary_frame.columnconfigure(1, weight=1)
+
+        self.summary_value_var = tk.StringVar(value="$0.00")
+        self.summary_holdings_var = tk.StringVar(value="No holdings yet")
+        self.summary_last_updated_var = tk.StringVar(value="Waiting for first update")
+
+        self.summary_value_label = ttk.Label(
+            self.summary_frame,
+            textvariable=self.summary_value_var,
+            style="SummaryValue.TLabel",
+        )
+        self.summary_value_label.grid(row=0, column=0, rowspan=2, sticky="w")
+
+        self.summary_holdings_label = ttk.Label(
+            self.summary_frame,
+            textvariable=self.summary_holdings_var,
+            style="SummaryPrimary.TLabel",
+        )
+        self.summary_holdings_label.grid(row=0, column=1, sticky="e")
+
+        self.summary_last_updated_label = ttk.Label(
+            self.summary_frame,
+            textvariable=self.summary_last_updated_var,
+            style="SummarySecondary.TLabel",
+        )
+        self.summary_last_updated_label.grid(row=1, column=1, sticky="e", pady=(4, 0))
+
+        ttk.Separator(self.root, orient="horizontal").pack(fill="x", pady=(0, 12))
+
+        self.controls_frame = ttk.Frame(self.root)
+        self.controls_frame.pack(fill="x", pady=(0, 12))
+
+        symbol_label = ttk.Label(self.controls_frame, text="Symbol", style="AppCaption.TLabel")
         symbol_label.grid(row=0, column=0, sticky="w")
 
         self.symbol_var = tk.StringVar()
         self.symbol_combo = ttk.Combobox(
-            controls,
+            self.controls_frame,
             textvariable=self.symbol_var,
             values=POPULAR_SYMBOLS,
             width=12,
@@ -145,22 +223,27 @@ class TickerApp:
         )
         self.symbol_combo.grid(row=1, column=0, padx=(0, 8), sticky="ew")
 
-        shares_label = ttk.Label(controls, text="Shares")
+        shares_label = ttk.Label(self.controls_frame, text="Shares", style="AppCaption.TLabel")
         shares_label.grid(row=0, column=1, sticky="w")
 
         self.shares_var = tk.StringVar()
-        shares_entry = ttk.Entry(controls, textvariable=self.shares_var, width=10)
+        shares_entry = ttk.Entry(self.controls_frame, textvariable=self.shares_var, width=10)
         shares_entry.grid(row=1, column=1, padx=(0, 8), sticky="ew")
 
-        add_button = ttk.Button(controls, text="Add / Update", command=self.add_holding)
-        add_button.grid(row=1, column=2, sticky="ew")
+        self.add_button = ttk.Button(
+            self.controls_frame,
+            text="Add / Update",
+            command=self.add_holding,
+            style="PrimaryButton.TButton",
+        )
+        self.add_button.grid(row=1, column=2, sticky="ew")
 
-        refresh_label = ttk.Label(controls, text="Refresh")
+        refresh_label = ttk.Label(self.controls_frame, text="Refresh", style="AppCaption.TLabel")
         refresh_label.grid(row=0, column=3, sticky="w")
 
         self.interval_var = tk.StringVar(value=self.refresh_interval_label)
         interval_combo = ttk.Combobox(
-            controls,
+            self.controls_frame,
             textvariable=self.interval_var,
             values=list(REFRESH_INTERVAL_OPTIONS.keys()),
             width=6,
@@ -169,25 +252,25 @@ class TickerApp:
         interval_combo.grid(row=1, column=3, padx=(8, 0), sticky="ew")
         interval_combo.bind("<<ComboboxSelected>>", self._on_interval_change)
 
-        theme_label = ttk.Label(controls, text="Theme")
+        theme_label = ttk.Label(self.controls_frame, text="Theme", style="AppCaption.TLabel")
         theme_label.grid(row=0, column=4, sticky="w")
 
         self.theme_var = tk.StringVar(value=self.theme_name)
         theme_combo = ttk.Combobox(
-            controls,
+            self.controls_frame,
             textvariable=self.theme_var,
             values=list(THEME_PRESETS.keys()),
-            width=8,
+            width=10,
             state="readonly",
         )
         theme_combo.grid(row=1, column=4, padx=(8, 0), sticky="ew")
         theme_combo.bind("<<ComboboxSelected>>", self._on_theme_change)
 
-        controls.columnconfigure(0, weight=2)
-        controls.columnconfigure(1, weight=1)
-        controls.columnconfigure(2, weight=1)
-        controls.columnconfigure(3, weight=1)
-        controls.columnconfigure(4, weight=1)
+        self.controls_frame.columnconfigure(0, weight=2)
+        self.controls_frame.columnconfigure(1, weight=1)
+        self.controls_frame.columnconfigure(2, weight=1)
+        self.controls_frame.columnconfigure(3, weight=1)
+        self.controls_frame.columnconfigure(4, weight=1)
 
         self.tree = ttk.Treeview(
             self.root,
@@ -210,6 +293,7 @@ class TickerApp:
 
         self.chart_frame = ttk.LabelFrame(self.root, text="Price History", style="Card.TLabelframe")
         self.chart_frame.pack(fill="both", expand=True, pady=(12, 0))
+        self.chart_frame.configure(padding=12)
 
         self.figure = Figure(figsize=(4.6, 2.8), dpi=100)
         self.ax = self.figure.add_subplot(111)
@@ -220,18 +304,30 @@ class TickerApp:
         self.canvas_widget.pack(fill="both", expand=True)
         self.canvas.draw_idle()
 
-        actions = ttk.Frame(self.root)
-        actions.pack(fill="x", pady=(12, 0))
+        self.actions_frame = ttk.Frame(self.root)
+        self.actions_frame.pack(fill="x", pady=(12, 0))
 
-        remove_button = ttk.Button(actions, text="Remove Selected", command=self.remove_selected)
-        remove_button.pack(side="left")
+        self.remove_button = ttk.Button(
+            self.actions_frame,
+            text="Remove Selected",
+            command=self.remove_selected,
+            style="DangerButton.TButton",
+        )
+        self.remove_button.pack(side="left")
 
-        refresh_button = ttk.Button(actions, text="Refresh Now", command=self.refresh_all_holdings)
-        refresh_button.pack(side="right")
+        self.refresh_button = ttk.Button(
+            self.actions_frame,
+            text="Refresh Now",
+            command=self.refresh_all_holdings,
+            style="GhostButton.TButton",
+        )
+        self.refresh_button.pack(side="right")
 
         self.status_var = tk.StringVar(value="Ready")
         self.status_label = ttk.Label(self.root, textvariable=self.status_var, anchor="w", style="Status.TLabel")
         self.status_label.pack(fill="x", pady=(8, 0))
+
+        self._update_summary()
 
     def add_holding(self) -> None:
         symbol = self.symbol_var.get().strip().upper()
@@ -406,6 +502,33 @@ class TickerApp:
             return f"{minutes}m ago"
         hours = int(minutes // 60)
         return f"{hours}h ago"
+
+    def _update_summary(self) -> None:
+        if not hasattr(self, "summary_value_var"):
+            return
+
+        count = len(self.holdings)
+        total_shares = sum(holding.shares for holding in self.holdings.values())
+        priced = [holding for holding in self.holdings.values() if holding.value is not None]
+        total_value = sum(holding.value for holding in priced if holding.value is not None)
+
+        if count == 0:
+            holdings_text = "No holdings yet"
+        else:
+            shares_text = f"{total_shares:g} share{'s' if total_shares != 1 else ''}"
+            holdings_text = f"{count} holding{'s' if count != 1 else ''} • {shares_text}"
+        self.summary_holdings_var.set(holdings_text)
+
+        if priced:
+            self.summary_value_var.set(f"${total_value:,.2f}")
+            latest_timestamp = max(holding.last_updated or 0 for holding in priced)
+            self.summary_last_updated_var.set(self._humanize_elapsed(latest_timestamp))
+        else:
+            self.summary_value_var.set("—")
+            if count == 0:
+                self.summary_last_updated_var.set("Waiting for first update")
+            else:
+                self.summary_last_updated_var.set("Waiting on pricing data")
 
     def _schedule_refresh(self) -> None:
         if self.refresh_job:
@@ -655,6 +778,40 @@ class TickerApp:
             spine.set_color(palette["grid"])
         self.ax.spines["top"].set_alpha(0.0)
         self.ax.spines["right"].set_alpha(0.0)
+
+    def _humanize_elapsed(self, timestamp: float) -> str:
+        if not timestamp:
+            return "Waiting for first update"
+        delta = max(0.0, time.time() - timestamp)
+        if delta < 1:
+            return "Updated moments ago"
+        if delta < 60:
+            return f"Updated {int(delta)}s ago"
+        minutes = delta / 60
+        if minutes < 60:
+            return f"Updated {int(minutes)}m ago"
+        hours = minutes / 60
+        if hours < 24:
+            return f"Updated {int(hours)}h ago"
+        days = hours / 24
+        return f"Updated {int(days)}d ago"
+
+    def _shade_color(self, hex_color: str, factor: float) -> str:
+        if not hex_color:
+            return hex_color
+        color = hex_color.lstrip("#")
+        if len(color) != 6 or factor == 1:
+            return f"#{color}" if not hex_color.startswith("#") else hex_color
+        factor = max(0.0, min(2.0, factor))
+        rgb = [int(color[i : i + 2], 16) for i in range(0, 6, 2)]
+        adjusted = []
+        for value in rgb:
+            if factor < 1:
+                new_value = int(value * factor)
+            else:
+                new_value = int(value + (255 - value) * (factor - 1))
+            adjusted.append(max(0, min(255, new_value)))
+        return "#{:02x}{:02x}{:02x}".format(*adjusted)
 
     def _on_close(self) -> None:
         if self.refresh_job:
