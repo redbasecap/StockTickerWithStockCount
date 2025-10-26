@@ -1,3 +1,8 @@
+# Screenshots
+
+![Ticker window in light mode](screenshots/light_mode_v1.png)
+![Ticker window in dark mode](screenshots/dark_mode_v1.png)
+
 # Ticker With Price
 
 A small Tkinter desktop ticker that keeps your stock holdings up to date using Yahoo Finance data.
