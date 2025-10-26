@@ -1,30 +1,21 @@
 # Ticker With Price
 
-A minimalist always-on-top desktop ticker built with Python. Add the stocks you own, track your share counts, and watch current values update automatically using free Yahoo Finance data.
+A small Tkinter desktop ticker that keeps your stock holdings up to date using Yahoo Finance data.
 
-## Features
+## Install
 
-- Lightweight Tkinter UI that stays above other windows (`ticker.py`).
-- Quick add/update controls with a popular-symbol dropdown.
-- Live pricing via Yahoo's public chart endpoint (no API key required).
-- Adjustable auto-refresh cadence (down to 5 seconds) plus manual refresh and inline status feedback.
-- Persisted holdings stored locally in SQLite so tracked shares survive restarts.
-- Embedded price-history chart with smooth styling to visualize the latest trend.
-- Instant light/dark themes with refreshed, modern UI styling.
+Make sure you have Python 3.9+ available, then run:
 
-## Requirements
+```bash
+python install.py
+```
 
-- Python 3.9 or newer.
-- `requests`
-- `matplotlib`
-- `ttkbootstrap`
+The script installs the required packages (`requests`, `matplotlib`, and `ttkbootstrap`) into your current Python environment.
 
-## Run It
+## Run
 
 ```bash
 python ticker.py
 ```
 
-Enter a symbol (or pick one from the dropdown), set the share count, and click **Add / Update**. Prices refresh in the background and the window remains on top of your workspace.
-
-> Yahoo's free endpoints occasionally throttle. If a row shows an error, wait a few seconds and use **Refresh Now**.
+Add or update your symbols, set share counts, and the app will keep prices refreshed in the background. The window stays on top so you can keep an eye on your positions while you work.
