@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from matplotlib.ticker import MaxNLocator, StrMethodFormatter
 from ttkbootstrap import Style
 
 
@@ -778,6 +779,9 @@ class TickerApp:
         self.ax.set_ylabel("Price", fontsize=9, color=palette["text"])
         self.ax.tick_params(axis="both", labelsize=8, colors=palette["text"])
         self.ax.grid(True, which="major", color=palette["grid"], linestyle="--", linewidth=0.6)
+        self.ax.yaxis.set_major_locator(MaxNLocator(nbins=6, prune="both"))
+        self.ax.yaxis.set_major_formatter(StrMethodFormatter("${x:,.2f}"))
+        self.ax.yaxis.offsetText.set_visible(False)
         self.ax.set_facecolor(palette["chart_bg"])
         self.figure.patch.set_facecolor(palette["figure_bg"])
         for spine in self.ax.spines.values():
