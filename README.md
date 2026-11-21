@@ -2,6 +2,8 @@
 
 # Ticker With Price
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/redbasecap)
+
 A small Tkinter desktop ticker that keeps your stock holdings up to date using Yahoo Finance data.
 
 # Screenshots
